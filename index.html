@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tarea de razonamiento con figuras · ESIC University</title>
+<link rel="icon" href="img/logo-esic-azul.png">
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<header class="cabecera">
+  <img src="img/logo-esic-blanco.png" alt="ESIC University">
+  <div class="sep"></div>
+  <div class="asig"><span id="asig"></span><small id="tema"></small></div>
+</header>
+<div class="franja"></div>
+
+<nav class="pestanas" id="pestanas" role="tablist">
+  <button role="tab" class="activa" aria-selected="true" data-destino="vista-exp">Experimento</button>
+  <button role="tab" aria-selected="false" data-destino="vista-res">Resultados</button>
+</nav>
+
+<!-- =================================================================
+     PESTAÑA 1 · EXPERIMENTO
+     ================================================================= -->
+<main id="vista-exp">
+
+  <!-- 0. PANTALLA DEL ESTUDIANTE QUE RECOGE LOS DATOS -->
+  <section id="p-reclutador" class="tarjeta">
+    <div class="paso">Para el estudiante que recoge los datos</div>
+    <h1>Preparar el dispositivo</h1>
+    <p>Escribe tu código de recogida (el que te ha dado el profesor). Se guardará en este dispositivo
+      para las siguientes participaciones.</p>
+    <label class="campo">Código de recogida
+      <input type="text" id="cod-reclutador" maxlength="20" autocomplete="off" placeholder="p. ej. ER-07"></label>
+    <p class="nota" id="contador-disp"></p>
+    <ul class="nota">
+      <li>Entrega el dispositivo a la persona participante y <strong>no mires la pantalla ni ayudes</strong> mientras responde.</li>
+      <li>Busca un sitio tranquilo. Solo mayores de edad que no estén cursando esta asignatura.</li>
+    </ul>
+    <div class="botones"><button id="btn-reclutador" disabled>Entregar a la persona participante</button></div>
+  </section>
+
+  <section id="p-limite" class="tarjeta oculto">
+    <h1>Límite alcanzado en este dispositivo</h1>
+    <p>Desde este dispositivo ya se han registrado <strong id="lim-n"></strong> participaciones, el máximo previsto.
+      Usa otro dispositivo o habla con el profesor.</p>
+  </section>
+
+  <!-- 1. CONSENTIMIENTO -->
+  <section id="p-consentimiento" class="tarjeta oculto">
+    <h1>Tarea de razonamiento con figuras</h1>
+    <p>Te invitamos a participar en una actividad de la asignatura de Métodos de investigación en Psicología
+      (ESIC University). Consiste en resolver <strong>problemas de razonamiento con figuras</strong>.</p>
+    <ul>
+      <li>Dura unos <strong>8-10 minutos</strong>.</li>
+      <li>La participación es <strong>voluntaria</strong> y puedes abandonar en cualquier momento.</li>
+      <li>Es <strong>anónima</strong>: no se recoge tu nombre, correo ni ningún dato identificativo.</li>
+      <li>Los datos se usan solo con fines docentes y de forma agregada.</li>
+      <li>Al terminar te explicaremos el objetivo de la actividad.</li>
+    </ul>
+    <label class="check"><input type="checkbox" id="chk-edad">
+      <span>Declaro que soy mayor de edad y que he leído esta información.</span></label>
+    <div class="botones">
+      <button id="btn-acepto" disabled>Acepto participar</button>
+      <button id="btn-rechazo" class="secundario">No deseo participar</button>
+    </div>
+  </section>
+
+  <section id="p-rechazo" class="tarjeta oculto">
+    <h1>Gracias por tu tiempo</h1>
+    <p>No se ha guardado ningún dato. Devuelve el dispositivo a la persona que te lo ha pasado.</p>
+    <div class="botones"><button class="btn-nuevo">Volver al inicio</button></div>
+  </section>
+
+  <!-- 2. INSTRUCCIONES -->
+  <section id="p-instr" class="tarjeta oculto">
+    <h1>Instrucciones</h1>
+    <p>Verás tres figuras: <b>A</b>, <b>B</b> y <b>C</b>. La figura A se transforma en la B siguiendo una o varias reglas
+      (girar, mover el punto, quitar líneas, reflejarse…). Tu tarea es elegir la figura que resulta de aplicar
+      <b>las mismas reglas</b> a la figura C.</p>
+    <div class="esquema"><span>A</span><i>→</i><span>B</span><b>como</b><span>C</span><i>→</i><span>?</span></div>
+    <ul>
+      <li>Toca la figura que creas correcta. Si ninguna lo es, elige «Ninguna es correcta»; si no lo sabes, «No sé».</li>
+      <li>No hay límite de tiempo estricto, pero no te detengas demasiado en una figura.</li>
+      <li>Primero harás <strong>2 ejemplos de práctica</strong> con corrección.</li>
+    </ul>
+    <div class="caja-incentivo oculto" id="caja-incentivo"></div>
+    <div class="botones"><button id="btn-practica">Empezar la práctica</button></div>
+  </section>
+
+  <section id="p-transicion" class="tarjeta oculto">
+    <h1>¡Muy bien! Ahora empieza la tarea</h1>
+    <p>Vas a resolver <strong id="tr-n"></strong> figuras. Ya no verás si aciertas o fallas.
+      Concéntrate y responde con calma.</p>
+    <div class="caja-incentivo oculto" id="caja-incentivo2"></div>
+    <div class="botones"><button id="btn-tarea">Empezar</button></div>
+  </section>
+
+  <!-- 3. ÍTEM (práctica y tarea) -->
+  <section id="p-item" class="tarjeta oculto">
+    <div class="fila-item">
+      <div class="paso" id="it-contador"></div>
+      <div class="recordatorio oculto" id="it-recordatorio"></div>
+    </div>
+    <div class="barra"><div id="it-barra"></div></div>
+    <div class="tronco">
+      <figure><img id="img-a" alt="Figura A"><figcaption>A</figcaption></figure>
+      <span class="flecha">→</span>
+      <figure><img id="img-b" alt="Figura B"><figcaption>B</figcaption></figure>
+      <span class="como">como</span>
+      <figure><img id="img-c" alt="Figura C"><figcaption>C</figcaption></figure>
+      <span class="flecha">→</span>
+      <figure class="incognita"><img src="items/comunes/q.png" alt="?"><figcaption>?</figcaption></figure>
+    </div>
+    <div class="opciones-fig" id="opciones"></div>
+    <div class="opciones-texto">
+      <button class="secundario" data-op="9">Ninguna es correcta</button>
+      <button class="secundario" data-op="10">No sé</button>
+    </div>
+    <div class="feedback oculto" id="feedback"></div>
+  </section>
+
+  <!-- 4. PREGUNTAS FINALES -->
+  <section id="p-finales" class="tarjeta oculto">
+    <h2>Para terminar</h2>
+    <form id="form-finales" novalidate></form>
+    <div class="botones"><button id="btn-enviar">Enviar respuestas</button></div>
+  </section>
+
+  <!-- 5. FIN -->
+  <section id="p-fin" class="tarjeta oculto">
+    <h1>¡Gracias por participar!</h1>
+    <div class="resultado-fin" id="fin-resultado"></div>
+    <div class="premio oculto" id="fin-premio"></div>
+    <h2>¿Qué estábamos estudiando?</h2>
+    <p>Esta actividad es un experimento de clase sobre <strong>motivación y razonamiento</strong>. Al azar, a la mitad
+      de las personas se les ofrecía un café si superaban un número de aciertos, y a la otra mitad no se les decía nada.
+      Queremos saber si el incentivo mejora el rendimiento y, sobre todo, si lo hace más en las figuras difíciles
+      que en las fáciles.</p>
+    <p class="nota">Tus respuestas son anónimas. Código de participación: <strong id="codigo"></strong> ·
+      <span id="estado-envio">Enviando…</span></p>
+    <p>Por favor, <strong>no le cuentes a nadie el objetivo</strong> hasta que termine la recogida de datos.</p>
+    <div class="botones" id="fin-botones"><button class="btn-nuevo">Nuevo participante</button></div>
+  </section>
+</main>
+
+<!-- Aviso de rapidez -->
+<div class="modal oculto" id="modal-rapidez" role="dialog" aria-modal="true">
+  <div class="modal-caja">
+    <h2>Estás respondiendo muy rápido</h2>
+    <p>Has contestado las últimas figuras en muy pocos segundos. Mira bien las figuras A, B y C antes de responder:
+      responder al azar hace que tus datos no sirvan.</p>
+    <div class="botones"><button id="btn-modal">Entendido, iré con más calma</button></div>
+  </div>
+</div>
+
+<!-- =================================================================
+     PESTAÑA 2 · RESULTADOS
+     ================================================================= -->
+<main id="vista-res" class="ancho oculto">
+  <h1>Resultados: ¿el incentivo mejora el razonamiento? ¿Depende de la dificultad?</h1>
+  <p class="nota">Diseño factorial mixto 2 × 2. VI 1 entre grupos: incentivo (café si se supera el umbral) frente a control.
+    VI 2 intrasujeto: dificultad del ítem (fácil, 1 regla; difícil, 3 reglas). VD: número de aciertos.</p>
+
+  <div class="controles">
+    <label>Cohorte<input type="text" id="cohorte"></label>
+    <label>Clave de resultados<input type="password" id="clave" autocomplete="off"></label>
+    <button id="btn-cargar">Cargar datos</button>
+    <button id="btn-demo" class="secundario">Datos simulados</button>
+    <button id="btn-local" class="secundario">Datos de este navegador</button>
+    <button id="btn-csv" class="secundario">CSV para JASP</button>
+    <label class="en-linea"><input type="checkbox" id="auto"> Actualizar cada 15 s</label>
+    <span class="estado" id="estado">Sin datos cargados.</span>
+  </div>
+  <div class="filtros">
+    <strong>Excluir:</strong>
+    <label><input type="checkbox" id="f-sospecha" checked> participaciones sospechosas</label>
+    <label><input type="checkbox" id="f-ya" checked> quienes ya habían hecho la tarea</label>
+    <label><input type="checkbox" id="f-condiciones" checked> quienes tuvieron interrupciones</label>
+    <label><input type="checkbox" id="f-psico"> estudiantes de Psicología</label>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="v" id="t-n">–</div><div class="e">participantes analizados</div></div>
+    <div class="tile"><div class="v" id="t-inc" style="color:#FF9606">–</div><div class="e">grupo incentivo</div></div>
+    <div class="tile"><div class="v" id="t-con" style="color:#0047E8">–</div><div class="e">grupo control</div></div>
+    <div class="tile"><div class="v" id="t-exc">–</div><div class="e">excluidos (sospechosos y filtros)</div></div>
+  </div>
+
+  <section class="panel" id="panel-piloto" style="display:none">
+    <div class="titulo-panel"><span class="num-panel">P</span><h2>Modo piloto: elegir ítems y umbral</h2></div>
+    <div class="interpreta" id="piloto-txt"></div>
+  </section>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">1</span><h2>Estadísticos descriptivos (aciertos)</h2></div>
+    <div class="sub" id="sub-desc"></div>
+    <div class="scroll-x"><table class="tabla" id="tab-desc"></table></div>
+  </section>
+
+  <div class="rejilla">
+    <section class="panel">
+      <div class="titulo-panel"><span class="num-panel">2</span><h2>Gráfico de interacción</h2></div>
+      <div class="sub">Media de aciertos con IC al 95 %. Si las líneas no son paralelas, hay interacción.</div>
+      <div class="leyenda"><span><i style="background:#FF9606"></i>Incentivo</span><span><i style="background:#0047E8"></i>Control</span></div>
+      <div id="g-inter"></div>
+    </section>
+    <section class="panel">
+      <div class="titulo-panel"><span class="num-panel">3</span><h2>Cada punto es una persona</h2></div>
+      <div class="sub">Aciertos en cada condición: caja = cuartiles, línea = mediana, rombo = media</div>
+      <div class="leyenda"><span><i style="background:#FF9606"></i>Incentivo</span><span><i style="background:#0047E8"></i>Control</span></div>
+      <div id="g-dist"></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">4</span><h2>ANOVA mixto 2 × 2</h2></div>
+    <div class="sub">Efectos intrasujeto (dificultad y su interacción con el incentivo)</div>
+    <div class="scroll-x"><table class="tabla" id="tab-intra"></table></div>
+    <div class="sub" style="margin-top:14px">Efectos entre sujetos (incentivo)</div>
+    <div class="scroll-x"><table class="tabla" id="tab-entre"></table></div>
+    <div class="sub" style="margin-top:14px">Efectos simples</div>
+    <div class="scroll-x"><table class="tabla" id="tab-simples"></table></div>
+    <div class="interpreta" id="interp"></div>
+  </section>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">4b</span><h2>Alternativa no paramétrica</h2></div>
+    <div class="sub">Útil si las puntuaciones son muy asimétricas (efecto techo en los fáciles) o los grupos son pequeños.
+      Cada efecto del ANOVA se contrasta con su prueba de rangos equivalente.</div>
+    <div class="scroll-x"><table class="tabla" id="tab-nopar"></table></div>
+    <div class="interpreta" id="interp-nopar"></div>
+  </section>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">4c</span><h2>Efectos principales (medias marginales)</h2></div>
+    <div class="sub">Cada gráfico promedia sobre el otro factor. Media de aciertos por ítem (proporción) con IC al 95 %.</div>
+    <div class="rejilla" style="margin-bottom:0">
+      <div><div class="sub"><b>Incentivo</b> (promediando fáciles y difíciles)</div><div id="g-ef-inc"></div></div>
+      <div><div class="sub"><b>Dificultad</b> (promediando ambos grupos)</div><div id="g-ef-dif"></div></div>
+    </div>
+  </section>
+
+  <div class="rejilla">
+    <section class="panel">
+      <div class="titulo-panel"><span class="num-panel">5</span><h2>Comprobación de la manipulación</h2></div>
+      <div class="sub">Motivación declarada (1-5) y recuerdo del premio. Si el incentivo funcionó, el grupo con incentivo
+        debería declarar más motivación.</div>
+      <div class="scroll-x"><table class="tabla" id="tab-manip"></table></div>
+    </section>
+    <section class="panel">
+      <div class="titulo-panel"><span class="num-panel">6</span><h2>Umbral del premio</h2></div>
+      <div class="sub" id="sub-umbral"></div>
+      <div class="scroll-x"><table class="tabla" id="tab-umbral"></table></div>
+      <div class="interpreta" id="interp-umbral"></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">7</span><h2>Tiempos de respuesta</h2></div>
+    <div class="sub">Mediana del tiempo por ítem (segundos), media de las medianas individuales. ¿El incentivo hace que se dedique más tiempo a los ítems difíciles?</div>
+    <div class="rejilla" style="margin-bottom:0">
+      <div id="g-tr"></div>
+      <div class="scroll-x"><table class="tabla" id="tab-tr"></table></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">8</span><h2>Análisis de ítems y matriz Q</h2></div>
+    <div class="sub">Cada fila es un ítem; las columnas de reglas forman la <b>matriz Q</b> (✓ = el ítem usa esa regla).
+      p = proporción de aciertos · r = correlación del ítem con el resto de la prueba (discriminación).</div>
+    <div class="scroll-x"><table class="tabla" id="tab-items"></table></div>
+    <div class="sub" style="margin-top:14px">Dificultad media según las reglas que contiene el ítem</div>
+    <div class="scroll-x"><table class="tabla" id="tab-reglas"></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">9</span><h2>Calidad de los datos</h2></div>
+    <div class="sub">Participaciones por código de recogida y entradas marcadas como sospechosas</div>
+    <div class="scroll-x"><table class="tabla" id="tab-reclut"></table></div>
+    <details><summary>Ver participaciones sospechosas</summary><div class="scroll" id="sospechosos"></div></details>
+  </section>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">10</span><h2>Así se informaría en un artículo (APA 7)</h2></div>
+    <div class="apa" id="apa"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Datos individuales</h2>
+    <details><summary>Ver tabla de datos</summary><div class="scroll" id="crudos"></div></details>
+  </section>
+</main>
+
+<div id="tip"></div>
+<p class="pie">ESIC University · <span id="pie-asig"></span> · Actividad docente</p>
+
+<script src="js/config.js"></script>
+<script src="js/estadistica.js"></script>
+<script src="js/experimento.js"></script>
+<script src="js/resultados.js"></script>
+</body>
+</html>
