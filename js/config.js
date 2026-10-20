@@ -17,7 +17,7 @@
 window.CONFIG = {
 
   /* ---------- 1) Conexión con la hoja de Google (Apps Script) ---------- */
-  ENDPOINT: "",                       // pega aquí la URL que termina en /exec
+  ENDPOINT: "https://script.google.com/macros/s/AKfycbzNx32ZU2k_Ae1cjxeswmjCfS9SIsvMPjShDh6zrMPrhxSl23YGvZnn6BtTn3N45-N78g/exec",                       // pega aquí la URL que termina en /exec
   COHORTE: "MDTI-2026-G1",
   ASIGNATURA: "Métodos, Diseño y Técnicas de Investigación en Psicología",
   TEMA: "Tema 6 · Diseños factoriales",
