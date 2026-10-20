@@ -97,13 +97,17 @@
   async function asignar() {
     if (C.MODO === "piloto") { D.condicion = "piloto"; D.asignacion = "piloto"; return; }
     if (C.ENDPOINT) {
-      try {
-        const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 8000);
-        const r = await fetch(`${C.ENDPOINT}?accion=asignar&cohorte=${encodeURIComponent(C.COHORTE)}&id=${D.id}&bloque=${C.TAMANO_BLOQUE}`, { signal: ctrl.signal });
-        clearTimeout(t);
-        const j = await r.json();
-        if (j.condicion === "incentivo" || j.condicion === "control") { D.condicion = j.condicion; D.asignacion = "bloques"; D.bloque = j.bloque; return; }
-      } catch (e) { }
+      // Dos intentos de 15 s: cuando muchas personas empiezan a la vez, el servidor atiende de una en una.
+      for (let intento = 1; intento <= 2; intento++) {
+        try {
+          const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 15000);
+          const r = await fetch(`${C.ENDPOINT}?accion=asignar&cohorte=${encodeURIComponent(C.COHORTE)}&id=${D.id}&bloque=${C.TAMANO_BLOQUE}`, { signal: ctrl.signal });
+          clearTimeout(t);
+          const j = await r.json();
+          if (j.condicion === "incentivo" || j.condicion === "control") { D.condicion = j.condicion; D.asignacion = "bloques"; D.bloque = j.bloque; D.intentos_asignacion = intento; return; }
+        } catch (e) { }
+        await esperar(800 + Math.random() * 1200);
+      }
     }
     D.condicion = Math.random() < 0.5 ? "incentivo" : "control";   // sin conexión: aleatoria simple
     D.asignacion = "local";
@@ -122,7 +126,23 @@
   function precargar() { C.PRACTICA.concat(PRUEBA).forEach((id) => partes.forEach((p) => { const im = new Image(); im.src = ruta(id, p); })); }
 
   /* ================== 2. PRÁCTICA Y TAREA ================== */
-  document.addEventListener("visibilitychange", () => { if (document.hidden && D.enTarea) D.cambios_pestana++; });
+  /* Salidas de la pestaña: se cuentan y se mide cuánto tiempo estuvo oculta la tarea en cada ítem.
+     El límite de 120 s por ítem se pausa mientras la pestaña está oculta (pantalla bloqueada, notificación…). */
+  let tOculto = 0, ocultoItem = 0, salidasItem = 0, restanteMs = 0, tArranque = 0;
+  document.addEventListener("visibilitychange", () => {
+    if (!D.enTarea) return;
+    if (document.hidden) {
+      D.cambios_pestana++; salidasItem++; tOculto = performance.now();
+      if (timer) { clearTimeout(timer); timer = null; restanteMs -= performance.now() - tArranque; }
+    } else if (tOculto) {
+      ocultoItem += performance.now() - tOculto; tOculto = 0;
+      if (!bloqueado && C.TIEMPO_MAX_ITEM_S > 0 && fase === "tarea") armarTemporizador();
+    }
+  });
+  function armarTemporizador() {
+    tArranque = performance.now();
+    timer = setTimeout(() => responder(0, null), Math.max(0, restanteMs));
+  }
   window.addEventListener("beforeunload", (e) => { if (D.fecha_inicio && !D.enviado) { e.preventDefault(); e.returnValue = ""; } });
 
   let cola = [], fase = "", actual = null, tPres = 0, rapidasSeguidas = 0, timer = null, bloqueado = true;
@@ -164,14 +184,16 @@
       op.appendChild(b);
     }
     await esperar(150);
-    tPres = performance.now(); bloqueado = false;
-    if (C.TIEMPO_MAX_ITEM_S > 0 && fase === "tarea") timer = setTimeout(() => responder(0, null), C.TIEMPO_MAX_ITEM_S * 1000);
+    tPres = performance.now(); bloqueado = false; ocultoItem = 0; salidasItem = 0;
+    if (C.TIEMPO_MAX_ITEM_S > 0 && fase === "tarea") { restanteMs = C.TIEMPO_MAX_ITEM_S * 1000; armarTemporizador(); }
   }
   document.querySelectorAll(".opciones-texto button").forEach((b) => b.addEventListener("click", () => responder(Number(b.dataset.op), b)));
 
   async function responder(op, boton) {
-    if (bloqueado) return; bloqueado = true; clearTimeout(timer);
+    if (bloqueado) return; bloqueado = true; clearTimeout(timer); timer = null;
+    if (tOculto) { ocultoItem += performance.now() - tOculto; tOculto = performance.now(); }
     const it = ITEM[actual], tr = Math.round(performance.now() - tPres), ok = op === it.correcta ? 1 : 0;
+    const oculto = Math.round(ocultoItem);
     if (boton) boton.classList.add("elegida");
     $("#opciones").classList.add("bloqueado"); $(".opciones-texto").classList.add("bloqueado");
     if (fase === "practica") {
@@ -185,7 +207,7 @@
       $("#btn-sig-prac").addEventListener("click", siguiente);
       return;
     }
-    D.respuestas.push({ id: actual, dif: it.dificultad, resp: op, ok, tr, pos: D.respuestas.length + 1 });
+    D.respuestas.push({ id: actual, dif: it.dificultad, resp: op, ok, tr, pos: D.respuestas.length + 1, oculto, salidas: salidasItem });
     // aviso de rapidez
     if (op !== 0 && tr < C.RAPIDA_MS) rapidasSeguidas++; else rapidasSeguidas = 0;
     await esperar(250);
@@ -234,7 +256,8 @@
   function codificar() {
     const R = D.respuestas, S = C.SOSPECHA;
     const fila = {
-      id: D.id, cohorte: D.cohorte, modo: D.modo, condicion: D.condicion, asignacion: D.asignacion, bloque: D.bloque ?? "",
+      id: D.id, cohorte: D.cohorte, modo: D.modo, presentacion: C.PRESENTACION || "", condicion: D.condicion, asignacion: D.asignacion, bloque: D.bloque ?? "",
+      intentos_asignacion: D.intentos_asignacion ?? "",
       reclutador: D.reclutador, dispositivo: D.dispositivo, n_en_dispositivo: D.n_en_dispositivo, seg_desde_anterior: D.seg_desde_anterior,
       fecha_inicio: D.fecha_inicio, fecha_fin: new Date().toISOString(), duracion_s: Math.round((Date.now() - D.t0) / 1000),
       movil: D.movil, pantalla: D.pantalla, cambios_pestana: D.cambios_pestana, avisos_rapidez: D.avisos_rapidez,
@@ -255,22 +278,22 @@
     fila.tr_mediana = med(R.map((x) => x.tr));
     const cuenta = {}; R.forEach((x) => { cuenta[x.resp] = (cuenta[x.resp] || 0) + 1; });
     fila.max_misma_opcion = Math.max(0, ...Object.values(cuenta));
-    const motivos = [];
-    if (fila.n_rapidas >= S.MIN_RAPIDAS) motivos.push(`${fila.n_rapidas} respuestas muy rápidas`);
-    if (fila.tr_mediana !== "" && fila.tr_mediana < S.MEDIANA_MIN_MS) motivos.push("mediana de tiempo muy baja");
-    if (fila.max_misma_opcion >= S.MISMA_OPCION) motivos.push("misma opción repetida");
-    if (fila.duracion_s < S.DURACION_MIN_S) motivos.push("duración muy corta");
-    if (fila.cambios_pestana >= S.CAMBIOS_PESTANA) motivos.push("salidas de la pestaña");
-    fila.sospechoso = motivos.length ? 1 : 0;
-    fila.motivo_sospecha = motivos.join("; ");
+    // Control de calidad (mismas reglas que la pestaña Resultados: js/calidad.js)
+    Object.assign(fila, D.finales);
+    R.forEach((x) => { fila[x.id + "_resp"] = x.resp; fila[x.id + "_ok"] = x.ok; fila[x.id + "_tr"] = x.tr; fila[x.id + "_pos"] = x.pos; fila[x.id + "_oculto"] = x.oculto; });
+    fila.oculto_total_s = Math.round(R.reduce((a, x) => a + x.oculto, 0) / 1000);
+    fila.n_nose_rapidas = R.filter((x) => x.resp === 10 && x.tr < 5000).length;
+    const q = window.CALIDAD.clasificar(fila);
+    fila.sospechoso = q.esAzar ? 1 : 0;
+    fila.motivo_sospecha = q.azar.join("; ");
+    fila.interrumpida = q.esInter ? 1 : 0;
+    fila.motivo_interrupcion = q.inter.join("; ");
+    fila.faciles_azar = q.esFacil ? 1 : 0;
     fila.umbral = C.INCENTIVO.UMBRAL;
     fila.supera_umbral = fila.aciertos_total >= C.INCENTIVO.UMBRAL ? 1 : 0;
     fila.premio = D.condicion === "incentivo" && fila.supera_umbral ? 1 : 0;
     fila.codigo_premio = fila.premio ? "CAFE-" + D.id.slice(-4) : "";
-    Object.assign(fila, D.finales);
     fila.motivacion = ["mot_esfuerzo", "mot_interes", "mot_importancia"].map((k) => Number(D.finales[k])).reduce((a, b) => a + b, 0) / 3;
-    // ítem a ítem (columnas <id>_resp, <id>_ok, <id>_tr, <id>_pos)
-    R.forEach((x) => { fila[x.id + "_resp"] = x.resp; fila[x.id + "_ok"] = x.ok; fila[x.id + "_tr"] = x.tr; fila[x.id + "_pos"] = x.pos; });
     return fila;
   }
 

@@ -78,10 +78,16 @@
   <!-- 2. INSTRUCCIONES -->
   <section id="p-instr" class="tarjeta oculto">
     <h1>Instrucciones</h1>
-    <p>Verás tres figuras: <b>A</b>, <b>B</b> y <b>C</b>. La figura A se transforma en la B siguiendo una o varias reglas
-      (girar, mover el punto, quitar líneas, reflejarse…). Tu tarea es elegir la figura que resulta de aplicar
-      <b>las mismas reglas</b> a la figura C.</p>
-    <div class="esquema"><span>A</span><i>→</i><span>B</span><b>como</b><span>C</span><i>→</i><span>?</span></div>
+    <p>Verás una cuadrícula de 2 × 2 con tres figuras (<b>A</b>, <b>B</b> y <b>C</b>) y un hueco (<b>?</b>).
+      Las figuras cambian siguiendo una o varias reglas (girar, mover el punto, quitar líneas, reflejarse…).
+      Tu tarea es elegir la figura que completa la cuadrícula.</p>
+    <div class="esquema-matriz" aria-hidden="true">
+      <span>A</span><i class="h">→</i><span>B</span>
+      <i class="v">↓</i><b></b><i class="v">↓</i>
+      <span>C</span><i class="h">→</i><span class="q">?</span>
+    </div>
+    <p class="nota centro">Lo que cambia de A a B debe cambiar igual de C a ?. Y lo que cambia de A a C, igual de B a ?.
+      Puedes usar cualquiera de los dos caminos.</p>
     <ul>
       <li>Toca la figura que creas correcta. Si ninguna lo es, elige «Ninguna es correcta»; si no lo sabes, «No sé».</li>
       <li>No hay límite de tiempo estricto, pero no te detengas demasiado en una figura.</li>
@@ -106,13 +112,10 @@
       <div class="recordatorio oculto" id="it-recordatorio"></div>
     </div>
     <div class="barra"><div id="it-barra"></div></div>
-    <div class="tronco">
+    <div class="matriz" role="group" aria-label="Cuadrícula de la analogía: A y B arriba, C y la incógnita abajo">
       <figure><img id="img-a" alt="Figura A"><figcaption>A</figcaption></figure>
-      <span class="flecha">→</span>
       <figure><img id="img-b" alt="Figura B"><figcaption>B</figcaption></figure>
-      <span class="como">como</span>
       <figure><img id="img-c" alt="Figura C"><figcaption>C</figcaption></figure>
-      <span class="flecha">→</span>
       <figure class="incognita"><img src="items/comunes/q.png" alt="?"><figcaption>?</figcaption></figure>
     </div>
     <div class="opciones-fig" id="opciones"></div>
@@ -177,18 +180,33 @@
   </div>
   <div class="filtros">
     <strong>Excluir:</strong>
-    <label><input type="checkbox" id="f-sospecha" checked> participaciones sospechosas</label>
+    <label title="Respuestas demasiado rápidas, la misma opción repetida, «No sé» seguidos o duración muy corta"><input type="checkbox" id="f-azar" checked> respuestas al azar</label>
+    <label title="Salidas de la pestaña, tiempo con la tarea oculta o pausas muy largas"><input type="checkbox" id="f-inter" checked> participaciones interrumpidas</label>
+    <label title="1 acierto o menos en los 6 ítems fáciles (criterio añadido tras el piloto)"><input type="checkbox" id="f-facil"> fáciles al nivel del azar</label>
     <label><input type="checkbox" id="f-ya" checked> quienes ya habían hecho la tarea</label>
-    <label><input type="checkbox" id="f-condiciones" checked> quienes tuvieron interrupciones</label>
+    <label><input type="checkbox" id="f-condiciones" checked> quienes declaran interrupciones</label>
     <label><input type="checkbox" id="f-psico"> estudiantes de Psicología</label>
+  </div>
+  <div class="filtros">
+    <strong>Además:</strong>
+    <label><input type="checkbox" id="f-manual" checked> aplicar las decisiones manuales del panel 9b</label>
+    <label>Presentación de los ítems
+      <select id="f-presentacion"><option value="todas">todas</option><option value="lineal">lineal (A → B como C → ?)</option><option value="matriz 2x2">matriz 2 × 2</option></select></label>
   </div>
 
   <div class="tiles">
     <div class="tile"><div class="v" id="t-n">–</div><div class="e">participantes analizados</div></div>
     <div class="tile"><div class="v" id="t-inc" style="color:#FF9606">–</div><div class="e">grupo incentivo</div></div>
     <div class="tile"><div class="v" id="t-con" style="color:#0047E8">–</div><div class="e">grupo control</div></div>
-    <div class="tile"><div class="v" id="t-exc">–</div><div class="e">excluidos (sospechosos y filtros)</div></div>
+    <div class="tile"><div class="v" id="t-exc">–</div><div class="e">excluidos (calidad y filtros)</div></div>
   </div>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">0</span><h2>Quién está en cada condición</h2></div>
+    <div class="sub">Cada participación con su condición, cómo se asignó y si entra en el análisis con los filtros actuales.
+      «Local» = el móvil no pudo contactar con la hoja y asignó la condición al azar por su cuenta.</div>
+    <div id="por-cond"></div>
+  </section>
 
   <section class="panel" id="panel-piloto" style="display:none">
     <div class="titulo-panel"><span class="num-panel">P</span><h2>Modo piloto: elegir ítems y umbral</h2></div>
@@ -281,7 +299,15 @@
     <div class="titulo-panel"><span class="num-panel">9</span><h2>Calidad de los datos</h2></div>
     <div class="sub">Participaciones por código de recogida y entradas marcadas como sospechosas</div>
     <div class="scroll-x"><table class="tabla" id="tab-reclut"></table></div>
-    <details><summary>Ver participaciones sospechosas</summary><div class="scroll" id="sospechosos"></div></details>
+  </section>
+
+  <section class="panel">
+    <div class="titulo-panel"><span class="num-panel">9b</span><h2>Revisión de las participaciones marcadas</h2></div>
+    <div class="sub">¿Son realmente sospechosas? Cada tarjeta muestra el tiempo de cada ítem en el orden en que se respondió
+      (escala logarítmica) y por qué se marcó. Puedes decidir a mano si se incluye o se excluye; la decisión se guarda en este navegador y sale en el CSV.</div>
+    <div class="scroll-x" id="rev-resumen"></div>
+    <p class="nota" id="rev-dec"></p>
+    <div id="revision"></div>
   </section>
 
   <section class="panel">
@@ -300,6 +326,7 @@
 
 <script src="js/config.js"></script>
 <script src="js/estadistica.js"></script>
+<script src="js/calidad.js"></script>
 <script src="js/experimento.js"></script>
 <script src="js/resultados.js"></script>
 </body>

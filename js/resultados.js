@@ -91,27 +91,38 @@
     FILAS = filas; estado("Datos SIMULADOS (no son reales)."); pintar();
   }
 
-  /* ---------------- control de calidad (se recalcula con los umbrales actuales de config.js) ---------------- */
-  function motivos(f) {
-    const S = C.SOSPECHA, m = [];
-    if (num(f.n_rapidas) >= S.MIN_RAPIDAS) m.push(`${f.n_rapidas} respuestas < ${C.RAPIDA_MS / 1000} s`);
-    if (num(f.tr_mediana) < S.MEDIANA_MIN_MS) m.push(`mediana ${fmt(num(f.tr_mediana) / 1000, 1)} s`);
-    if (num(f.max_misma_opcion) >= S.MISMA_OPCION) m.push(`misma opción ${f.max_misma_opcion} veces`);
-    if (num(f.duracion_s) < S.DURACION_MIN_S) m.push(`duración ${f.duracion_s} s`);
-    if (num(f.cambios_pestana) >= S.CAMBIOS_PESTANA) m.push(`${f.cambios_pestana} salidas de pestaña`);
+  /* ---------------- control de calidad ----------------
+     La clasificación se recalcula con js/calidad.js y los umbrales actuales de config.js
+     (no se usa la marca guardada en la hoja, que se compara aparte en el panel de revisión). */
+  const QC = new WeakMap();
+  const Q = (f) => { if (!QC.has(f)) QC.set(f, window.CALIDAD.clasificar(f)); return QC.get(f); };
+  const esSosp = (f) => Q(f).esAzar || Q(f).esInter;
+  const presentacion = (f) => f.presentacion || "lineal";
+  const CLAVE_DEC = () => "fx_decisiones_" + ($("#cohorte").value.trim() || C.COHORTE);
+  let DEC = {};
+  function leerDecisiones() { try { DEC = JSON.parse(localStorage.getItem(CLAVE_DEC()) || "{}"); } catch (e) { DEC = {}; } }
+  function guardarDecisiones() { try { localStorage.setItem(CLAVE_DEC(), JSON.stringify(DEC)); } catch (e) { } }
+  leerDecisiones();
+
+  /* Motivos por los que una fila queda fuera del análisis con los filtros actuales */
+  function motivosExclusion(f) {
+    const m = [], q = Q(f);
+    if (!isFinite(num(f.aciertos_facil)) || !isFinite(num(f.aciertos_dificil))) return ["datos incompletos"];
+    const dec = $("#f-manual").checked ? DEC[f.id] : undefined;
+    if (dec === "excluir") return ["excluida a mano"];
+    if (dec !== "incluir") {
+      if ($("#f-azar").checked && q.esAzar) m.push("al azar");
+      if ($("#f-inter").checked && q.esInter) m.push("interrumpida");
+      if ($("#f-facil").checked && q.esFacil) m.push("fáciles al azar");
+    }
+    if ($("#f-ya").checked && f.ya_participo === "Sí") m.push("ya la había hecho");
+    if ($("#f-condiciones").checked && f.condiciones === "No") m.push("declara interrupciones");
+    if ($("#f-psico").checked && f.psicologia === "Sí") m.push("estudia Psicología");
+    const pr = $("#f-presentacion").value;
+    if (pr !== "todas" && presentacion(f) !== pr) m.push("otra presentación");
     return m;
   }
-  const esSosp = (f) => motivos(f).length > 0 || String(f.sospechoso) === "1";
-  function filtrar() {
-    return FILAS.filter((f) => {
-      if (!isFinite(num(f.aciertos_facil)) || !isFinite(num(f.aciertos_dificil))) return false;
-      if ($("#f-sospecha").checked && esSosp(f)) return false;
-      if ($("#f-ya").checked && f.ya_participo === "Sí") return false;
-      if ($("#f-condiciones").checked && f.condiciones === "No") return false;
-      if ($("#f-psico").checked && f.psicologia === "Sí") return false;
-      return true;
-    });
-  }
+  function filtrar() { return FILAS.filter((f) => motivosExclusion(f).length === 0); }
 
   /* ---------------- SVG ---------------- */
   const tip = $("#tip");
@@ -304,6 +315,7 @@
     $("#panel-piloto").style.display = (pil.length || C.MODO === "piloto") ? "" : "none";
     if (pil.length || C.MODO === "piloto") panelPiloto(pil.length ? pil : F, A);
 
+    porCondicion();
     calidad();
     crudos();
 
@@ -437,17 +449,97 @@
       const k = f.reclutador || "(sin código)";
       por[k] = por[k] || { n: 0, s: 0, inc: 0, con: 0, disp: new Set(), dur: [], rap: 0 };
       const p = por[k]; p.n++; if (esSosp(f)) p.s++; if (f.condicion === "incentivo") p.inc++; if (f.condicion === "control") p.con++;
-      p.disp.add(f.dispositivo); p.dur.push(num(f.duracion_s)); p.rap += num(f.n_rapidas) || 0;
+      p.disp.add(f.dispositivo); p.dur.push(num(f.duracion_s)); p.rap += Q(f).datos.rapidas || 0;
     });
     const filas = Object.entries(por).sort((a, b) => b[1].n - a[1].n);
-    $("#tab-reclut").innerHTML = `<tr><th>Código de recogida</th><th>Participaciones</th><th>Incentivo / control</th><th>Dispositivos</th><th>Mdn duración (min)</th><th>Respuestas rápidas (total)</th><th>Sospechosas</th></tr>` +
+    $("#tab-reclut").innerHTML = `<tr><th>Código de recogida</th><th>Participaciones</th><th>Incentivo / control</th><th>Dispositivos</th><th>Mdn duración (min)</th><th>Respuestas rápidas (total)</th><th>Al azar o interrumpidas</th></tr>` +
       (filas.length ? filas.map(([k, p]) => `<tr${p.s / p.n >= .34 ? ' class="aviso-fila"' : ""}><td>${k}</td><td>${p.n}</td><td>${p.inc} / ${p.con}</td><td>${p.disp.size}</td>
         <td>${fmt(E.mediana(p.dur.filter(isFinite)) / 60, 1)}</td><td>${p.rap}</td><td>${p.s} (${pct(p.s / p.n)})</td></tr>`).join("") : `<tr><td colspan="7">Sin datos.</td></tr>`) +
-      `<tr class="nota-tabla"><td colspan="7">Sospechosa = cumple algún criterio: ≥ ${C.SOSPECHA.MIN_RAPIDAS} respuestas en menos de ${C.RAPIDA_MS / 1000} s, mediana &lt; ${C.SOSPECHA.MEDIANA_MIN_MS / 1000} s,
-        la misma opción ≥ ${C.SOSPECHA.MISMA_OPCION} veces, duración &lt; ${C.SOSPECHA.DURACION_MIN_S} s o ≥ ${C.SOSPECHA.CAMBIOS_PESTANA} salidas de la pestaña. En naranja, códigos con un tercio o más de entradas sospechosas.</td></tr>`;
-    const S = FILAS.filter(esSosp);
-    $("#sospechosos").innerHTML = S.length ? `<table class="tabla"><tr><th>id</th><th>Código</th><th>Condición</th><th>Aciertos</th><th>Mdn TR (s)</th><th>Motivos</th></tr>` +
-      S.map((f) => `<tr><td>${f.id}</td><td>${f.reclutador || ""}</td><td>${f.condicion}</td><td>${num(f.aciertos_facil) + num(f.aciertos_dificil)}</td><td>${fmt(num(f.tr_mediana) / 1000, 1)}</td><td>${motivos(f).join("; ") || f.motivo_sospecha || ""}</td></tr>`).join("") + "</table>" : vacio("Ninguna participación sospechosa.");
+      `<tr class="nota-tabla"><td colspan="7">En naranja, códigos con un tercio o más de participaciones al azar o interrumpidas. El detalle de cada una está en el panel 9b.</td></tr>`;
+    revision();
+  }
+
+  /* ---------------- participantes por condición ---------------- */
+  const fecha = (v) => { const d = new Date(v); return isNaN(d) ? "" : d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }); };
+  const corto = (id) => String(id || "").slice(-5);
+  function etiquetaEstado(f) {
+    const m = motivosExclusion(f), dec = DEC[f.id] && $("#f-manual").checked ? ` <span class="chip-dec">${DEC[f.id] === "incluir" ? "incluida a mano" : ""}</span>` : "";
+    return m.length ? `<span class="est est-fuera" title="${m.join("; ")}">Excluida · ${m[0]}${m.length > 1 ? ` +${m.length - 1}` : ""}</span>`
+                    : `<span class="est est-dentro">Incluida</span>${DEC[f.id] === "incluir" ? dec : ""}`;
+  }
+  function porCondicion() {
+    const grupos = [["incentivo", "Incentivo"], ["control", "Control"], ["otra", "Piloto u otra"]];
+    const de = (g) => FILAS.filter((f) => g === "otra" ? !(f.condicion === "incentivo" || f.condicion === "control") : f.condicion === g)
+      .sort((a, b) => String(a.fecha_inicio).localeCompare(String(b.fecha_inicio)));
+    const resumen = `<table class="tabla compacta"><tr><th>Condición</th><th>Total</th><th>Incluidas</th><th>Excluidas</th><th>Asignación por bloques</th><th>Asignación local (sin conexión)</th></tr>` +
+      grupos.map(([g, n]) => { const L = de(g); if (!L.length) return ""; const inc = L.filter((f) => !motivosExclusion(f).length).length;
+        return `<tr><td><b style="color:${COL[g] || "#5A6472"}">${n}</b></td><td>${L.length}</td><td>${inc}</td><td>${L.length - inc}</td>
+          <td>${L.filter((f) => f.asignacion === "bloques").length}</td><td>${L.filter((f) => f.asignacion === "local").length}</td></tr>`; }).join("") + "</table>";
+    const listas = grupos.map(([g, n]) => { const L = de(g); if (!L.length) return "";
+      return `<div class="lista-cond"><h3 style="color:${COL[g] || "#5A6472"}">${n} <span>(${L.length})</span></h3>
+        <table class="tabla compacta"><tr><th>#</th><th>id</th><th>Código</th><th>Fecha</th><th>Asig.</th><th>Fáciles</th><th>Difíciles</th><th>Mdn TR</th><th>Estado</th></tr>` +
+        L.map((f, i) => `<tr class="${motivosExclusion(f).length ? "fila-fuera" : ""}"><td>${i + 1}</td><td title="${f.id}">${corto(f.id)}</td><td>${f.reclutador || ""}</td><td>${fecha(f.fecha_inicio)}</td>
+          <td>${f.asignacion === "local" ? '<span title="Asignada en el móvil por falta de conexión">local</span>' : f.asignacion || ""}</td>
+          <td>${num(f.aciertos_facil)}</td><td>${num(f.aciertos_dificil)}</td><td>${fmt(Q(f).datos.mediana / 1000, 1)} s</td><td>${etiquetaEstado(f)}</td></tr>`).join("") + "</table></div>"; }).join("");
+    $("#por-cond").innerHTML = FILAS.length ? resumen + `<div class="rejilla-cond">${listas}</div>` : vacio("Sin datos.");
+  }
+
+  /* ---------------- revisión de participaciones marcadas ---------------- */
+  function tira(f) {
+    const R = Q(f).R; if (!R.length) return "";
+    const W = 360, H = 92, b = 18, m = { l: 26, r: 4, t: 6 }, bw = (W - m.l - m.r) / R.length;
+    const y = (t) => H - b - (H - b - m.t) * Math.log10(1 + Math.min(t, 120000) / 1000) / Math.log10(121);
+    let g = `<svg viewBox="0 0 ${W} ${H}" class="tira" role="img" aria-label="Tiempo de respuesta por ítem">`;
+    [1, 10, 60].forEach((sg) => { const yy = y(sg * 1000); g += `<line x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}" stroke="#E3E8F4"/><text x="${m.l - 3}" y="${yy + 3}" text-anchor="end" font-size="8" fill="#5A6472">${sg}s</text>`; });
+    const yr = y(C.RAPIDA_MS); g += `<line x1="${m.l}" x2="${W - m.r}" y1="${yr}" y2="${yr}" stroke="#C93C3C" stroke-dasharray="3 2"/>`;
+    R.forEach((x, i) => {
+      const x0 = m.l + i * bw + 2, yy = y(x.tr), col = x.resp === 0 ? "#8C97AE" : x.resp === 10 ? "#C9CED8" : x.ok ? "#0A8F7B" : "#F2A64A";
+      const tt = `${x.id} · ${x.resp === 0 ? "tiempo agotado" : x.resp === 10 ? "«No sé»" : x.resp === 9 ? "«Ninguna»" : "opción " + x.resp} · ${x.ok ? "acierto" : "fallo"} · ${(x.tr / 1000).toFixed(1)} s${isFinite(x.oculto) && x.oculto > 0 ? ` · ${(x.oculto / 1000).toFixed(0)} s oculta` : ""}`;
+      g += `<rect x="${x0}" y="${yy}" width="${bw - 4}" height="${H - b - yy}" fill="${col}" rx="2"><title>${tt}</title></rect>`;
+      g += `<text x="${x0 + (bw - 4) / 2}" y="${H - 6}" text-anchor="middle" font-size="8" fill="${x.dif === "facil" ? "#0A8F7B" : "#001447"}">${x.id}</text>`;
+    });
+    return g + "</svg>";
+  }
+  function veredicto(q, f) {
+    const d = q.datos;
+    if (q.esAzar) return { t: "Respuestas al azar", c: "v-azar", x: `Responde demasiado rápido para haber mirado las figuras (mediana ${fmt(d.mediana / 1000, 1)} s). Excluir.` };
+    if (q.esInter && d.mediana >= 8000 && d.facilOk >= 3) return { t: "Interrupción, no azar", c: "v-inter", x: `Sale de la tarea, pero sus tiempos son largos (mediana ${fmt(d.mediana / 1000, 1)} s) y acierta ${d.facilOk} de ${d.nFacil} fáciles: no parece responder al azar. Los ítems con tiempo agotado (${d.agotados}) pueden deberse a la interrupción.` };
+    if (q.esInter) return { t: "Interrupción dudosa", c: "v-duda", x: `Sale de la tarea y además su rendimiento en los fáciles es bajo (${d.facilOk} de ${d.nFacil}). Revisar.` };
+    if (q.esFacil) return { t: "Fáciles al nivel del azar", c: "v-duda", x: `Tiempos normales (mediana ${fmt(d.mediana / 1000, 1)} s), pero ${d.facilOk} de ${d.nFacil} aciertos en ítems que la mayoría resuelve: puede no haber entendido la tarea${d.nose >= 5 ? ` (marcó «No sé» ${d.nose} veces)` : ""}.` };
+    return { t: "Sin problemas con los criterios actuales", c: "v-ok", x: "La hoja la marcó como sospechosa con criterios anteriores; con los actuales no cumple ninguno." };
+  }
+  function revision() {
+    const M = FILAS.filter((f) => { const q = Q(f); return q.esAzar || q.esInter || q.esFacil || String(f.sospechoso) === "1" || DEC[f.id]; });
+    const orden = (f) => { const q = Q(f); return q.esAzar ? 0 : q.esInter && q.esFacil ? 1 : q.esFacil ? 2 : q.esInter ? 3 : 4; };
+    M.sort((a, b) => orden(a) - orden(b));
+    const cuenta = (fn) => FILAS.filter(fn).length;
+    const hoja = FILAS.filter((f) => String(f.sospechoso) === "1");
+    $("#rev-resumen").innerHTML = `<table class="tabla compacta"><tr><th>Categoría</th><th>N</th><th>¿Se excluye ahora?</th><th>Qué indica</th></tr>
+      <tr><td><span class="est v-azar">Al azar</span></td><td>${cuenta((f) => Q(f).esAzar)}</td><td>${$("#f-azar").checked ? "Sí" : "No"}</td><td>Respuestas rápidas, misma opción, «No sé» seguidos o duración muy corta. Criterio fijado de antemano.</td></tr>
+      <tr><td><span class="est v-inter">Interrumpida</span></td><td>${cuenta((f) => Q(f).esInter)}</td><td>${$("#f-inter").checked ? "Sí" : "No"}</td><td>Salidas de la pestaña, tiempo oculto, ítems de más de ${C.SOSPECHA.ITEM_LARGO_S || 150} s o más de ${C.SOSPECHA.DURACION_MAX_MIN || 30} min. No implica azar.</td></tr>
+      <tr><td><span class="est v-duda">Fáciles al azar</span></td><td>${cuenta((f) => Q(f).esFacil)}</td><td>${$("#f-facil").checked ? "Sí" : "No"}</td><td>≤ ${C.SOSPECHA.FACILES_MAX_AZAR ?? 1} acierto en los fáciles. Criterio añadido tras el piloto: si se usa, hay que declararlo.</td></tr>
+      <tr class="nota-tabla"><td colspan="4">En la hoja hay ${hoja.length} filas con <code>sospechoso = 1</code> (criterio antiguo, que mezclaba azar e interrupciones): ${hoja.filter((f) => Q(f).esAzar).length} son respuestas al azar y ${hoja.filter((f) => !Q(f).esAzar && Q(f).esInter).length} son interrupciones.</td></tr></table>`;
+    $("#revision").innerHTML = M.length ? M.map((f) => {
+      const q = Q(f), d = q.datos, v = veredicto(q, f), dec = DEC[f.id] || "auto";
+      const chips = [...q.azar.map((t) => `<span class="chip c-azar">${t}</span>`), ...q.inter.map((t) => `<span class="chip c-inter">${t}</span>`), ...q.facil.map((t) => `<span class="chip c-duda">${t}</span>`)].join("");
+      return `<div class="rev ${v.c}"><div class="rev-cab"><b title="${f.id}">${corto(f.id)}</b> · ${f.reclutador || "—"} · <span style="color:${COL[f.condicion] || "#5A6472"}">${f.condicion}</span> · ${fecha(f.fecha_inicio)}
+          <span class="est ${v.c}">${v.t}</span>${String(f.sospechoso) === "1" ? '<span class="chip">sospechosa en la hoja</span>' : ""}</div>
+        <div class="rev-cuerpo"><div>${tira(f)}<div class="ley-tira"><i style="background:#0A8F7B"></i>acierto <i style="background:#F2A64A"></i>fallo <i style="background:#C9CED8"></i>«No sé» <i style="background:#8C97AE"></i>tiempo agotado · línea roja = ${C.RAPIDA_MS / 1000} s</div></div>
+          <div class="rev-datos"><p>${v.x}</p><div class="chips">${chips}</div>
+            <p class="nota">Aciertos ${num(f.aciertos_facil)} + ${num(f.aciertos_dificil)} · mediana ${fmt(d.mediana / 1000, 1)} s · ${d.rapidas} rápidas · ${d.pest} salidas · ${d.nose} «No sé» · ${d.agotados} agotados · ${Math.round(d.dur / 60)} min ·
+              condiciones: ${f.condiciones || "—"} · ya participó: ${f.ya_participo || "—"}</p>
+            <div class="decision" data-id="${f.id}">Decisión:
+              ${[["auto", "según filtros"], ["incluir", "incluir"], ["excluir", "excluir"]].map(([k, t]) => `<label><input type="radio" name="dec-${f.id}" value="${k}" ${dec === k ? "checked" : ""}> ${t}</label>`).join("")}</div>
+            <div class="estado-fila">${etiquetaEstado(f)}</div></div></div></div>`;
+    }).join("") : vacio("No hay participaciones marcadas.");
+    document.querySelectorAll("#revision .decision input").forEach((r) => r.addEventListener("change", (e) => {
+      const id = e.target.closest(".decision").dataset.id;
+      if (e.target.value === "auto") delete DEC[id]; else DEC[id] = e.target.value;
+      guardarDecisiones(); pintar();
+    }));
+    const nd = Object.keys(DEC).length;
+    $("#rev-dec").innerHTML = nd ? `${nd} decisión${nd > 1 ? "es" : ""} manual${nd > 1 ? "es" : ""} guardada${nd > 1 ? "s" : ""} en este navegador. <button class="secundario mini" id="btn-borrar-dec">Borrar decisiones</button>` : "Sin decisiones manuales.";
+    if (nd) $("#btn-borrar-dec").addEventListener("click", () => { DEC = {}; guardarDecisiones(); pintar(); });
   }
 
   function crudos() {
@@ -460,11 +552,12 @@
     const F = filtrar().filter((f) => f.condicion === "incentivo" || f.condicion === "control");
     if (!F.length) { estado("No hay datos que exportar."); return; }
     const cols = ["id", "Incentivo", "reclutador", "sexo", "edad", "Aciertos_facil", "Aciertos_dificil", "TR_facil_s", "TR_dificil_s",
-      "mot_esfuerzo", "mot_interes", "mot_importancia", "motivacion", "recuerda_premio", "supera_umbral"];
+      "mot_esfuerzo", "mot_interes", "mot_importancia", "motivacion", "recuerda_premio", "supera_umbral", "presentacion", "al_azar", "interrumpida", "faciles_azar", "decision_manual"];
     const q = (v) => { const s = v === undefined || v === null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const txt = [cols.join(",")].concat(F.map((f) => [f.id, f.condicion, f.reclutador, f.sexo, f.edad, num(f.aciertos_facil), num(f.aciertos_dificil),
       fmt(num(f.tr_mediana_facil) / 1000, 3), fmt(num(f.tr_mediana_dificil) / 1000, 3), f.mot_esfuerzo, f.mot_interes, f.mot_importancia,
-      fmt(num(f.motivacion), 3), f.recuerda_premio, (num(f.aciertos_facil) + num(f.aciertos_dificil)) >= C.INCENTIVO.UMBRAL ? 1 : 0].map(q).join(","))).join("\n");
+      fmt(num(f.motivacion), 3), f.recuerda_premio, (num(f.aciertos_facil) + num(f.aciertos_dificil)) >= C.INCENTIVO.UMBRAL ? 1 : 0,
+      presentacion(f), Q(f).esAzar ? 1 : 0, Q(f).esInter ? 1 : 0, Q(f).esFacil ? 1 : 0, DEC[f.id] || ""].map(q).join(","))).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([txt], { type: "text/csv;charset=utf-8" }));
     a.download = `incentivo_razonamiento_${$("#cohorte").value || "datos"}.csv`; a.click();
@@ -474,7 +567,8 @@
   $("#btn-demo").addEventListener("click", simular);
   $("#btn-local").addEventListener("click", cargarLocal);
   $("#btn-csv").addEventListener("click", csv);
-  ["#f-sospecha", "#f-ya", "#f-condiciones", "#f-psico"].forEach((s) => $(s).addEventListener("change", pintar));
+  ["#f-azar", "#f-inter", "#f-facil", "#f-ya", "#f-condiciones", "#f-psico", "#f-manual", "#f-presentacion"].forEach((s) => $(s).addEventListener("change", pintar));
+  $("#cohorte").addEventListener("change", () => { leerDecisiones(); pintar(); });
   $("#auto").addEventListener("change", (e) => { clearInterval(timer); if (e.target.checked) { cargarServidor(); timer = setInterval(cargarServidor, 15000); } });
   document.addEventListener("abrir-resultados", () => { if (!cargado) { cargado = true; pintar(); } });
   pintar();

@@ -17,7 +17,7 @@
 window.CONFIG = {
 
   /* ---------- 1) Conexión con la hoja de Google (Apps Script) ---------- */
-  ENDPOINT: "https://script.google.com/macros/s/AKfycbzNx32ZU2k_Ae1cjxeswmjCfS9SIsvMPjShDh6zrMPrhxSl23YGvZnn6BtTn3N45-N78g/exec",                       // pega aquí la URL que termina en /exec
+  ENDPOINT: "",                       // pega aquí la URL que termina en /exec
   COHORTE: "MDTI-2026-G1",
   ASIGNATURA: "Métodos, Diseño y Técnicas de Investigación en Psicología",
   TEMA: "Tema 6 · Diseños factoriales",
@@ -29,6 +29,11 @@ window.CONFIG = {
      "experimento": solo ITEMS_EXPERIMENTO, con asignación aleatoria a
                     incentivo o control.                                     */
   MODO: "experimento",
+
+  /* Versión de la presentación de los ítems (se guarda en cada fila para poder comparar):
+     "lineal"     = A → B como C → ?   (hasta el 20/10/2026)
+     "matriz 2x2" = A B / C ?          (como en IMak; permite usar también la relación A → C) */
+  PRESENTACION: "matriz 2x2",
 
   /* ---------- 3) Incentivo ---------- */
   INCENTIVO: {
@@ -44,12 +49,23 @@ window.CONFIG = {
   MAX_PARTICIPANTES_DISPOSITIVO: 6,   // participaciones completas por dispositivo
   RAPIDA_MS: 2500,                    // una respuesta más rápida que esto se considera «muy rápida»
   AVISO_TRAS_RAPIDAS: 2,              // nº de respuestas muy rápidas seguidas que dispara el aviso
-  SOSPECHA: {                         // reglas para marcar una participación como sospechosa
-    MIN_RAPIDAS: 4,                   //   4 o más respuestas muy rápidas
+  /* Control de calidad (js/calidad.js). Se separan dos problemas:
+     AZAR: respuestas sin mirar -> datos no válidos.
+     INTERRUPCIÓN: la tarea quedó oculta o parada -> datos dudosos, revisar. */
+  SOSPECHA: {
+    // --- respuestas al azar ---
+    MIN_RAPIDAS: 4,                   //   4 o más respuestas en menos de RAPIDA_MS
     MEDIANA_MIN_MS: 4000,             //   mediana de tiempos por ítem < 4 s
     MISMA_OPCION: 8,                  //   la misma opción 8 o más veces
+    NOSE_RAPIDOS: 5,                  //   5 o más «No sé» en menos de 5 s
     DURACION_MIN_S: 120,              //   participación completa en menos de 2 min
-    CAMBIOS_PESTANA: 2                //   2 o más salidas de la pestaña durante los ítems
+    // --- interrupciones ---
+    CAMBIOS_PESTANA: 2,               //   2 o más salidas de la pestaña durante los ítems
+    OCULTO_MAX_S: 60,                 //   60 s o más con la tarea oculta (desde la versión 2x2)
+    ITEM_LARGO_S: 150,                //   algún ítem de más de 150 s (el límite es 120 s visibles)
+    DURACION_MAX_MIN: 30,             //   más de 30 min en total
+    // --- indicador añadido tras el piloto (no excluye salvo que se active el filtro) ---
+    FACILES_MAX_AZAR: 1               //   ≤ 1 acierto en los 6 ítems fáciles
   },
   TIEMPO_MAX_ITEM_S: 120,             // si se agota, se pasa al siguiente (cuenta como fallo)
 

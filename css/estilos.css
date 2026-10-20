@@ -245,3 +245,49 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--azul);font-weight:600
 #tab-nopar td:nth-child(-n+3), #tab-nopar th:nth-child(-n+3) { text-align: left; }
 #tab-nopar th, #tab-nopar td { white-space: nowrap; }
 #tab-nopar tr.nota-tabla td { white-space: normal; }
+
+/* ---- v2: presentación en cuadrícula 2 × 2 (como IMak: A B / C ?) ---- */
+.matriz{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;gap:8px 14px;margin:10px auto 10px;
+  padding:10px;background:var(--claro,#F3F5F9);border-radius:12px;width:max-content;max-width:100%}
+.matriz figure{margin:0;text-align:center}
+.matriz img{width:clamp(96px,30vw,150px);height:auto;display:block;border:1px solid var(--borde);border-radius:8px;background:#fff}
+.matriz figcaption{font-family:var(--titulo);font-size:16px;color:var(--texto2);line-height:1.2}
+.matriz .incognita img{border:2px dashed var(--naranja)}
+.esquema-matriz{display:grid;grid-template-columns:48px 34px 48px;grid-template-rows:48px 30px 48px;justify-content:center;
+  align-items:center;justify-items:center;margin:14px 0 6px;font-family:var(--titulo);font-size:24px;color:var(--marino)}
+.esquema-matriz span{display:inline-flex;width:46px;height:46px;border:2px solid var(--azul);border-radius:10px;align-items:center;justify-content:center;background:#fff}
+.esquema-matriz span.q{border:2px dashed var(--naranja);color:var(--naranja)}
+.esquema-matriz i{font-style:normal;color:var(--naranja);font-size:22px}
+.centro{text-align:center}
+@media (max-width:480px){.matriz img{width:min(36vw,140px)}.matriz{gap:6px 10px;padding:8px}}
+@media (max-height:700px){.matriz img{width:min(26vw,118px)}}
+
+/* ---- v2: participantes por condición y revisión de marcadas ---- */
+.tabla.compacta td,.tabla.compacta th{padding:5px 8px;font-size:13px}
+.rejilla-cond{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;margin-top:14px}
+.lista-cond h3{margin:0 0 6px;font-size:18px}.lista-cond h3 span{color:var(--texto2);font-weight:400;font-size:14px}
+.lista-cond{max-height:520px;overflow:auto}
+.fila-fuera td{color:#8C97AE}
+.est{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.est-dentro{background:#E3F7F2;color:#0A8F7B}.est-fuera{background:#F3F5F9;color:#5A6472}
+.v-azar.est,.rev.v-azar .rev-cab .est{background:#FCEDED;color:#C93C3C}
+.v-inter.est,.rev.v-inter .rev-cab .est{background:#FFF1DD;color:#B26A00}
+.v-duda.est,.rev.v-duda .rev-cab .est{background:#EFEAFB;color:#5B3FA8}
+.v-ok.est,.rev.v-ok .rev-cab .est{background:#E3F7F2;color:#0A8F7B}
+.chip{display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;border-radius:6px;font-size:12px;background:#F3F5F9;color:#43506B}
+.c-azar{background:#FCEDED;color:#C93C3C}.c-inter{background:#FFF1DD;color:#B26A00}.c-duda{background:#EFEAFB;color:#5B3FA8}
+.chip-dec{font-size:11px;color:#0047E8}
+.rev{border:1px solid var(--borde);border-left:6px solid #C9CED8;border-radius:10px;padding:10px 14px;margin:10px 0;background:#fff}
+.rev.v-azar{border-left-color:#C93C3C}.rev.v-inter{border-left-color:#FF9606}.rev.v-duda{border-left-color:#7B5CD6}.rev.v-ok{border-left-color:#0A8F7B}
+.rev-cab{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px;margin-bottom:6px}
+.rev-cuerpo{display:grid;grid-template-columns:minmax(260px,380px) 1fr;gap:16px;align-items:start}
+.rev-datos p{margin:2px 0 6px}
+.tira{width:100%;height:auto;display:block}
+.ley-tira{font-size:11px;color:var(--texto2)}.ley-tira i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 3px 0 8px;vertical-align:-1px}
+.decision{font-size:13px;margin-top:6px}.decision label{margin-right:10px;white-space:nowrap}
+.estado-fila{margin-top:4px}
+button.mini{padding:3px 10px;font-size:12px}
+@media (max-width:760px){.rev-cuerpo{grid-template-columns:1fr}.rejilla-cond{grid-template-columns:1fr}}
+.tabla.compacta td,.tabla.compacta th{text-align:left}
+.rejilla-cond{grid-template-columns:repeat(auto-fit,minmax(560px,1fr))}
+.lista-cond .tabla{min-width:540px}
